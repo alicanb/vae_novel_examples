@@ -1,27 +1,29 @@
+import os
+from numbers import Number
+
 import torch
-import argparse
 import torch.utils.data
 from torch import nn, optim
 from torch.nn import functional as F
-from torchvision import transforms
-from torchvision.utils import save_image
-from numbers import Number
-import mlp
 from tqdm.auto import tqdm
+
+import mlp
 
 
 class VAE(nn.Module):
-    def __init__(self, encoder=None, decoder=None, beta=1., device='cpu'):
+    def __init__(self, im_shape=None, dim_z=10, encoder=256, decoder=None, beta=1., device='cpu'):
         super(VAE, self).__init__()
-        if encoder is None:
-            encoder = [256]
-        elif isinstance(encoder, Number):
+        self.config = {'dim_z': dim_z, 'beta': beta}
+
+        if isinstance(encoder, Number):
             encoder = [encoder]
 
         if isinstance(encoder, nn.Module):
             self.enc = encoder
+            self.config['enc'] = []
         elif isinstance(encoder, list):
-            self.enc = mlp.Encoder(encoder)
+            self.enc = mlp.Encoder(im_shape, encoder, dim_z=dim_z)
+            self.config['enc'] = encoder
 
         if decoder is None:
             if isinstance(encoder, list):
@@ -33,15 +35,19 @@ class VAE(nn.Module):
 
         if isinstance(decoder, nn.Module):
             self.dec = decoder
+            self.config['dec'] = []
         elif isinstance(decoder, list):
-            self.enc = mlp.Decoder(decoder)
+            self.dec = mlp.Decoder(im_shape, decoder, dim_z=dim_z)
+            self.config['dec'] = encoder
 
         self.device = device
         self.to(device)
-        #self.enc.to(device)
-        #self.dec.to(device)
 
         self.loss_fn = ELBOLoss(beta=beta)
+
+    @property
+    def dim_z(self):
+        return self.config['dim_z']
 
     def encode(self, x):
         return self.enc(x)
@@ -50,17 +56,18 @@ class VAE(nn.Module):
     def sample_from(mu, log_std):
         std = torch.exp(log_std)
         eps = torch.randn_like(std)
-        return mu + eps*std
+        return mu + eps * std
 
     def decode(self, z):
         return self.dec(z)
 
     def forward(self, x):
-        mu, log_var = self.encode(x.view(-1, 784))
-        z = self.sample_from(mu, log_var)
-        return self.decode(z), mu, log_var
+        mu, log_std = self.encode(x)
+        z = self.sample_from(mu, log_std)
+        xhat = self.decode(z)
+        return xhat, mu, log_std
 
-    def run_epoch(self, loader, is_train=False):
+    def run_epoch(self, loader, is_train=False, optimizer=None):
         self.train(is_train)
         total_loss = 0
         total_rate = 0
@@ -68,7 +75,8 @@ class VAE(nn.Module):
         with torch.set_grad_enabled(is_train):
             for batch_idx, (data, _) in enumerate(loader):
                 data = data.to(self.device)
-                optimizer.zero_grad()
+                if isinstance(optimizer, optim.Optimizer):
+                    optimizer.zero_grad()
                 recon_batch, mu, log_std = self(data)
                 loss, rate, dist = self.loss_fn(recon_batch, data, mu, log_std)
                 if is_train:
@@ -83,18 +91,57 @@ class VAE(nn.Module):
         return total_loss, total_rate, total_distortion
 
     def reconstruct(self, x, use_mean=False):
-        mu, log_var = self.enc(x.view(-1, 784))
+        mu, log_var = self.enc(x)
         z = mu if use_mean else self.sample_from(mu, log_var)
         return self.decode(z)
 
-    def fit(self, train_loader, test_loader=None, num_epochs=1):
-        for epoch in range(1, num_epochs + 1):
-            self.run_epoch(train_loader, is_train=True)
-            if test_loader is not None:
-                self.run_epoch(test_loader, is_train=False)
+    def fit(self, train_loader, test_loader=None, num_epochs=1, optimizer=None):
+        if optimizer is None:
+            optimizer = optim.Adam(self.parameters(), lr=1e-3)
 
-    def save(self, model_dir):
-        torch.save(self, )
+        prog_bar = tqdm(range(1, num_epochs + 1))
+        for epoch in prog_bar:
+            train_loss, train_rate, train_distortion = self.run_epoch(train_loader, is_train=True, optimizer=optimizer)
+            metrics = {'Train ELBO': -train_loss, 'Train R': train_rate, 'Train D': train_distortion}
+            if test_loader is not None:
+                test_loss, test_rate, test_distortion = self.run_epoch(test_loader, is_train=False)
+                metrics.update({'Test ELBO': -test_loss, 'Test R': test_rate, 'Test D': test_distortion})
+            prog_bar.set_postfix(ordered_dict=metrics)
+
+    def save(self, filename=None, optimizer=None, model_dir='./models'):
+        if not os.path.isdir(model_dir):
+            os.mkdir(model_dir)
+        if filename is None:
+            filename = '_'.join([self.enc.filename, self.dec.filename]) + '.tar'
+        param_dict = {'enc_state_dict': self.enc.state_dict(),
+                      'dec_state_dict': self.dec.state_dict(),
+                      }
+        param_dict.update(self.config)
+        if optimizer is not None:
+            param_dict['optimizer_state_dict'] = optimizer.state_dict()
+        torch.save(param_dict, os.path.join(model_dir, filename))
+
+    @staticmethod
+    def load(filename, model=None, enc_file=None, dec_file=None, optimizer=None):
+        checkpoint = torch.load(filename)
+        if model is None:
+            model = VAE(dim_z=checkpoint['dim_z'], encoder=checkpoint['enc'], decoder=checkpoint['dec'])
+        if enc_file is not None:
+            model.enc = torch.load(enc_file)
+        else:
+            model.enc.load_state_dict(checkpoint['enc_state_dict'])
+        if dec_file is not None:
+            model.dec = torch.load(enc_file)
+        else:
+            model.dec.load_state_dict(checkpoint['dec_state_dict'])
+
+        if optimizer is None:
+            optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        try:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        except KeyError:
+            pass
+        return model, optimizer
 
 
 class ELBOLoss:
