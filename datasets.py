@@ -12,6 +12,8 @@ def _Holdout(DatasetClass, class_name=None):
             # TODO: fix this so you don't download dataset again
             super().__init__(root=root, train=train, transform=transform,
                              target_transform=target_transform, download=download)
+            if targets is None:
+                targets = list(self.class_to_idx.values())
             self.data = self.data[[elem in targets for elem in self.targets]]
             self.targets = self.targets[[elem in targets for elem in self.targets]]
 
@@ -19,8 +21,7 @@ def _Holdout(DatasetClass, class_name=None):
             num_rows = int(np.ceil(num_images / num_cols))
             fig, axs = plt.subplots(nrows=num_rows, ncols=num_cols, figsize=(20, 20))
             if shuffle:
-                idxs = np.random.choice(self.targets.shape[0], num_images,
-                                        replace=False)
+                idxs = np.random.choice(self.targets.shape[0], num_images, replace=False)
             else:
                 idxs = np.arange(num_images)
             axs = axs.flatten()
