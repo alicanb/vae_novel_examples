@@ -153,7 +153,7 @@ class ELBOLoss:
 
     @staticmethod
     def rate(mu, log_std, reduction='sum'):
-        rate = -0.5 * (1 + 2*log_std - mu.pow(2) - (2*log_std).exp())
+        rate = 0.5 * (1 + 2 * log_std - mu.pow(2) - (2 * log_std).exp())
         if reduction == 'sum':
             rate = torch.sum(rate)
         elif reduction == 'mean':
@@ -164,10 +164,9 @@ class ELBOLoss:
 
     @staticmethod
     def distortion(recon_x, x, reduction='sum'):
-        return F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction=reduction)
+        return -F.binary_cross_entropy(recon_x, x, reduction=reduction)
 
     def __call__(self, recon_x, x, mu, log_std):
-        rate = self.rate(mu,log_std,reduction=self.reduction)
+        rate = self.rate(mu, log_std, reduction=self.reduction)
         distortion = self.distortion(recon_x, x, reduction=self.reduction)
-        return distortion + self.beta * rate, rate, distortion
-
+        return -(distortion + self.beta * rate), rate, distortion
