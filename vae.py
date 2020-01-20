@@ -1,3 +1,4 @@
+import math
 import os
 from numbers import Number
 
@@ -49,8 +50,17 @@ class VAE(nn.Module):
     def dim_z(self):
         return self.config['dim_z']
 
-    def encode(self, x):
-        return self.enc(x)
+    def encode(self, x, batch_size=None):
+        if batch_size is None:
+            return self.enc(x)
+        else:
+            mu_list = []
+            logstd_list = []
+            for i in range(0, x.shape[0], batch_size):
+                mu, log_std = self.enc(x[i:i + batch_size])
+                mu_list.append(mu)
+                logstd_list.append(log_std)
+            return torch.cat(mu_list, dim=0), torch.cat(logstd_list, dim=0)
 
     @staticmethod
     def sample_from(mu, log_std):
@@ -58,8 +68,11 @@ class VAE(nn.Module):
         eps = torch.randn_like(std)
         return mu + eps * std
 
-    def decode(self, z):
-        return self.dec(z)
+    def decode(self, z, batch_size=None):
+        if batch_size is None:
+            return self.dec(z)
+        else:
+            return torch.cat([self.dec(z[i:i + batch_size]) for i in range(0, z.shape[0], batch_size)], dim=0)
 
     def forward(self, x):
         mu, log_std = self.encode(x)
@@ -90,10 +103,10 @@ class VAE(nn.Module):
         total_distortion /= len(loader.dataset)
         return total_loss, total_rate, total_distortion
 
-    def reconstruct(self, x, use_mean=False):
-        mu, log_var = self.enc(x)
-        z = mu if use_mean else self.sample_from(mu, log_var)
-        return self.decode(z)
+    def reconstruct(self, x, use_mean=False, batch_size=64):
+        mu, log_std = self.encode(x, batch_size)
+        z = mu if use_mean else self.sample_from(mu, log_std)
+        return self.decode(z, batch_size)
 
     def fit(self, train_loader, test_loader=None, num_epochs=1, optimizer=None):
         if optimizer is None:
@@ -142,6 +155,25 @@ class VAE(nn.Module):
         except KeyError:
             pass
         return model, optimizer
+
+    def agg_posterior(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100):
+        def normal_logprob(z, mu, log_std):
+            return 0.5 * ((z - mu) / log_std.exp()) ** 2 - log_std - 0.5 * math.log(2 * math.pi)
+
+        with torch.no_grad():
+            batch_dims = z.shape[:-1]
+            z = z.reshape(-1, z.shape[-1])
+            if train_mu is None and train_log_std is None:
+                train_mu, train_log_std = self.encode(train_data)
+            train_mu = train_mu.unsqueeze(1)  # (K x 1 x D)
+            train_log_std = train_log_std.unsqueeze(1)  # (K x 1 x D)
+            z = z.unsqueeze(0)  # (1 x N x D)
+            log_probs = [normal_logprob(z[:, i:i + batch_size], train_mu, train_log_std).sum(-1) for i in
+                         range(0, z.shape[1], batch_size)]
+            log_probs = torch.cat(log_probs, 1)  # K x N
+            log_probs = log_probs.logsumexp(dim=0, keepdim=False) - math.log(train_mu.shape[0])
+            log_probs = log_probs.reshape(batch_dims)
+        return log_probs
 
 
 class ELBOLoss:
