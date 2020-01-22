@@ -25,7 +25,7 @@ class Encoder(nn.Module):
         if isinstance(num_hidden, Number):
             num_hidden = [num_hidden]
 
-        self.filename = '_'.join(['enc_mlp']+[str(i) for i in num_hidden])
+        self.filename = '_'.join(['enc_mlp'] + [str(i) for i in num_hidden])
 
         h = [Flatten()]
         prev = num_pixels
@@ -40,13 +40,17 @@ class Encoder(nn.Module):
         self.enc_hidden = nn.Sequential(*h)
         self.z_mean = nn.Linear(num_hidden[-1], dim_z)
         self.z_log_std = nn.Linear(num_hidden[-1], dim_z)
-        # tqdm.write(str(self))
 
     def forward(self, x):
         hidden = self.enc_hidden(x)
         z_mean = self.z_mean(hidden)
         z_log_std = self.z_log_std(hidden)
         return z_mean, z_log_std
+
+    @property
+    def num_layers(self):
+        # TODO: add other layers
+        return sum([1 if isinstance(layer, nn.Linear) else 0 for layer in self.enc_hidden]) + 2
 
 
 class Decoder(nn.Module):
@@ -84,3 +88,8 @@ class Decoder(nn.Module):
         h = self.dec_hidden(z)
         x_hat = self.dec_x(h)
         return x_hat.reshape(x_hat.shape[0], *self.im_shape)
+
+    @property
+    def num_layers(self):
+        # TODO: add other layers
+        return sum([1 if isinstance(layer, nn.Linear) else 0 for layer in self.dec_hidden]) + 1
