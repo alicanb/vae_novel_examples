@@ -58,15 +58,22 @@ def _Mini(DatasetClass, class_name=None):
 
     class NewClass(DatasetClass):
         def __init__(self, root, samples_per_target=10, train=True, transform=None,
-                     target_transform=None, download=False):
+                     target_transform=None, download=False, random=True, seed=None):
             super().__init__(root=root, train=train, transform=transform,
                              target_transform=target_transform, download=download)
             # TODO: Handle case for size > available data
-            indx = torch.cat(
-                [torch.tensor(np.random.choice(np.nonzero(self.targets == i).squeeze(), samples_per_target, replace=False)) for i in
-                 list(self.class_to_idx.values())])
-            self.data = self.data[indx]
-            self.targets = self.targets[indx]
+            if random and seed is not None:
+                np.random.seed(seed)
+            ind = []
+            for i in list(self.class_to_idx.values()):  # unique targets
+                if random:
+                    i_ind = np.random.choice(np.nonzero(self.targets == i).squeeze(), samples_per_target, replace=False)
+                else:
+                    i_ind = np.nonzero(self.targets == i).squeeze()[:samples_per_target]
+                ind.append(torch.tensor(i_ind))
+            ind = torch.cat(ind)
+            self.data = self.data[ind]
+            self.targets = self.targets[ind]
 
         def visualize(self, num_images=100, num_cols=10, shuffle=True, **kwargs):
             _visualize(self.data, self.targets, num_images=num_images, num_cols=num_cols,
