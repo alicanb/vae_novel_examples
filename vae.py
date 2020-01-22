@@ -157,23 +157,44 @@ class VAE(nn.Module):
         return model, optimizer
 
     def agg_posterior(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100):
-        def normal_logprob(z, mu, log_std):
-            return 0.5 * ((z - mu) / log_std.exp()) ** 2 - log_std - 0.5 * math.log(2 * math.pi)
+        log_probs = self.optimal_weights(z=z, train_data=train_data, train_mu=train_mu,
+                                         train_log_std=train_log_std, batch_size=batch_size,
+                                         unnormalized=True)
+        with torch.no_grad():
+            log_probs = log_probs.logsumexp(dim=0, keepdim=False) - math.log(log_probs.shape[0])
+            log_probs = log_probs.exp()
+        return log_probs
 
+    def optimal_weights(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100,
+                        unnormalized=False):
         with torch.no_grad():
             batch_dims = z.shape[:-1]
             z = z.reshape(-1, z.shape[-1])
             if train_mu is None and train_log_std is None:
                 train_mu, train_log_std = self.encode(train_data)
-            train_mu = train_mu.unsqueeze(1)  # (K x 1 x D)
-            train_log_std = train_log_std.unsqueeze(1)  # (K x 1 x D)
-            z = z.unsqueeze(0)  # (1 x N x D)
-            log_probs = [normal_logprob(z[:, i:i + batch_size], train_mu, train_log_std).sum(-1) for i in
-                         range(0, z.shape[1], batch_size)]
-            log_probs = torch.cat(log_probs, 1)  # K x N
-            log_probs = log_probs.logsumexp(dim=0, keepdim=False) - math.log(train_mu.shape[0])
-            log_probs = log_probs.reshape(batch_dims)
-        return log_probs
+            train_mu = train_mu.unsqueeze(0)  # (1 x K x D)
+            train_log_std = train_log_std.unsqueeze(0)  # (1 x K x D)
+            z = z.unsqueeze(1)  # (N x 1 x D)
+            weights = [normal_logprob(z[:, i:i + batch_size], train_mu, train_log_std).sum(-1) for i in
+                       range(0, z.shape[1], batch_size)]
+            weights = torch.cat(weights, 1)  # N x K
+            if not unnormalized:
+                weights = weights - weights.logsumexp(dim=1, keepdim=True)
+            weights = weights.reshape(batch_dims + weights.shape[-1:])
+        return weights
+
+    def optimal_reconstruct(self, test_data=None, test_mu=None, train_data=None,
+                            train_mu=None, train_log_std=None, batch_size=100):
+        with torch.no_grad():
+            if test_mu is None:
+                test_mu, _ = self.encode(test_data, batch_size=batch_size)
+            weights = self.optimal_weights(test_mu, train_data=train_data, train_mu=train_mu,
+                                           train_log_std=train_log_std, batch_size=batch_size).exp()
+            # sum
+            #weights = weights[(..., ) + (None, ) * (train_data.ndim - 1)]
+            #weighted_average = torch.sum(weights * train_data, dim=0)
+            weighted_average = torch.einsum('...i, i...jk->...jk', weights, train_data)
+        return weighted_average
 
 
 class ELBOLoss:
@@ -185,7 +206,7 @@ class ELBOLoss:
 
     @staticmethod
     def rate(mu, log_std, reduction='sum'):
-        rate = 0.5 * (1 + 2 * log_std - mu.pow(2) - (2 * log_std).exp())
+        rate = 0.5 * (1 + 2 * log_std - mu ** 2 - (2 * log_std).exp())
         if reduction == 'sum':
             rate = torch.sum(rate)
         elif reduction == 'mean':
@@ -196,9 +217,15 @@ class ELBOLoss:
 
     @staticmethod
     def distortion(recon_x, x, reduction='sum'):
+        eps = torch.finfo(recon_x.dtype).eps
+        recon_x = recon_x.clamp(min=eps, max=1 - eps)
         return -F.binary_cross_entropy(recon_x, x, reduction=reduction)
 
     def __call__(self, recon_x, x, mu, log_std):
         rate = self.rate(mu, log_std, reduction=self.reduction)
         distortion = self.distortion(recon_x, x, reduction=self.reduction)
         return -(distortion + self.beta * rate), rate, distortion
+
+
+def normal_logprob(z, mu, log_std):
+    return -0.5 * ((z - mu) / log_std.exp()) ** 2 - log_std - 0.5 * math.log(2 * math.pi)
