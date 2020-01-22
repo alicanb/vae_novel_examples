@@ -39,7 +39,7 @@ class VAE(nn.Module):
             self.config['dec'] = []
         elif isinstance(decoder, list):
             self.dec = mlp.Decoder(im_shape, decoder, dim_z=dim_z)
-            self.config['dec'] = encoder
+            self.config['dec'] = decoder
 
         self.device = device
         self.to(device)
