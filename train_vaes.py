@@ -32,7 +32,8 @@ parser.add_argument('--holdout-digit', type=int, default=9,
                     help='holdout digit')
 parser.add_argument('--num-neurons', nargs='+', type=int)
 parser.add_argument('--enc-arch', nargs='+', type=int)
-parser.add_argument('--max-depth', type=int, default=4)
+parser.add_argument('--sweep', action='store_true', default=False)
+parser.add_argument('--num-layers', type=int, nargs='+')
 
 args = parser.parse_args()
 if args.mini and args.holdout:
@@ -63,8 +64,11 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
     arcs = []
-    for i in range(args.max_depth):
-        arcs.extend([list(a[::-1]) for a in combinations_with_replacement(args.num_neurons, r=i)])
+    if args.sweep:
+        for num_layer in args.num_layers:
+            arcs.extend([list(a[::-1]) for a in combinations_with_replacement(args.num_neurons, r=num_layer)])
+    else:
+        arcs.append(args.enc_arch)
     for enc in tqdm(arcs):
         vae = VAE(im_shape=[1, 28, 28], dim_z=args.dim_z, encoder=enc, device=device, beta=args.beta)
         vae.fit(train_loader, test_loader, num_epochs=args.epochs)
