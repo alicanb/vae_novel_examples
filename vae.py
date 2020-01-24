@@ -161,7 +161,7 @@ class VAE(nn.Module):
                                          train_log_std=train_log_std, batch_size=batch_size,
                                          unnormalized=True)
         with torch.no_grad():
-            log_probs = log_probs.logsumexp(dim=0, keepdim=False) - math.log(log_probs.shape[0])
+            log_probs = log_probs.logsumexp(dim=-1, keepdim=False) - math.log(log_probs.shape[-1])
             log_probs = log_probs.exp()
         return log_probs
 
@@ -177,9 +177,10 @@ class VAE(nn.Module):
             z = z.unsqueeze(1)  # (N x 1 x D)
             weights = [normal_logprob(z[:, i:i + batch_size], train_mu, train_log_std).sum(-1) for i in
                        range(0, z.shape[1], batch_size)]
-            weights = torch.cat(weights, 1)  # N x K
+            weights = torch.cat(weights, -1)  # N x K
             if not unnormalized:
-                weights = weights - weights.logsumexp(dim=1, keepdim=True)
+                weights = weights - weights.logsumexp(dim=-1, keepdim=True)
+                weights.exp_()
             weights = weights.reshape(batch_dims + weights.shape[-1:])
         return weights
 
