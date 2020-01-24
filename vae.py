@@ -156,17 +156,7 @@ class VAE(nn.Module):
             pass
         return model, optimizer
 
-    def agg_posterior(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100):
-        log_probs = self.optimal_weights(z=z, train_data=train_data, train_mu=train_mu,
-                                         train_log_std=train_log_std, batch_size=batch_size,
-                                         unnormalized=True)
-        with torch.no_grad():
-            log_probs = log_probs.logsumexp(dim=-1, keepdim=False) - math.log(log_probs.shape[-1])
-            log_probs = log_probs.exp()
-        return log_probs
-
-    def optimal_weights(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100,
-                        unnormalized=False):
+    def log_posterior(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100):
         with torch.no_grad():
             batch_dims = z.shape[:-1]
             z = z.reshape(-1, z.shape[-1])
@@ -178,10 +168,24 @@ class VAE(nn.Module):
             weights = [normal_logprob(z[:, i:i + batch_size], train_mu, train_log_std).sum(-1) for i in
                        range(0, z.shape[1], batch_size)]
             weights = torch.cat(weights, -1)  # N x K
-            if not unnormalized:
-                weights = weights - weights.logsumexp(dim=-1, keepdim=True)
-                weights.exp_()
             weights = weights.reshape(batch_dims + weights.shape[-1:])
+        return weights
+
+    def agg_posterior(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100):
+        log_probs = self.log_posterior(z=z, train_data=train_data, train_mu=train_mu,
+                                       train_log_std=train_log_std, batch_size=batch_size)
+        with torch.no_grad():
+            log_probs = log_probs.logsumexp(dim=-1, keepdim=False) - math.log(log_probs.shape[-1])  # logmeanexp
+            log_probs.exp_()
+        return log_probs
+
+    def optimal_weights(self, z: torch.Tensor, train_data=None, train_mu=None, train_log_std=None, batch_size=100):
+        weights = self.log_posterior(z=z, train_data=train_data, train_mu=train_mu,
+                                     train_log_std=train_log_std, batch_size=batch_size)
+        with torch.no_grad():
+            # normalize
+            weights = weights - weights.logsumexp(dim=-1, keepdim=True)
+            weights.exp_()
         return weights
 
     def optimal_reconstruct(self, test_data=None, test_mu=None, train_data=None,
@@ -190,10 +194,7 @@ class VAE(nn.Module):
             if test_mu is None:
                 test_mu, _ = self.encode(test_data, batch_size=batch_size)
             weights = self.optimal_weights(test_mu, train_data=train_data, train_mu=train_mu,
-                                           train_log_std=train_log_std, batch_size=batch_size).exp()
-            # sum
-            #weights = weights[(..., ) + (None, ) * (train_data.ndim - 1)]
-            #weighted_average = torch.sum(weights * train_data, dim=0)
+                                           train_log_std=train_log_std, batch_size=batch_size)
             weighted_average = torch.einsum('...i, i...jk->...jk', weights, train_data)
         return weighted_average
 
