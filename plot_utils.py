@@ -2,8 +2,8 @@ import matplotlib as mpl
 import numpy as np
 import seaborn as sns
 import torch
+from matplotlib import patches
 from matplotlib import pyplot as plt
-from matplotlib.patches import ConnectionPatch
 
 
 def show_grid(images, labels=None, num_rows=None, num_cols=None, axs=None,
@@ -77,12 +77,40 @@ def compare_reconstructions(num_params, num_layers, orig_images, recons_images, 
             axs_dec[i].get_yaxis().set_ticks([])
             axs_dec[i].imshow(recons_images[sorted_i[i]][0])
             plt.tight_layout()
-            con = ConnectionPatch(xyA=(14, 27), xyB=(num_params[sorted_i[i]], num_layers[sorted_i[i]]), coordsA="data",
-                                  coordsB="data",
-                                  axesA=axs_dec[i], axesB=main_ax, color="red")
+            con = patches.ConnectionPatch(xyA=(14, 27), xyB=(num_params[sorted_i[i]], num_layers[sorted_i[i]]),
+                                          coordsA="data",
+                                          coordsB="data",
+                                          axesA=axs_dec[i], axesB=main_ax, color="red")
             axs_dec[i].add_artist(con)
         fig.text(0.5, 1.00, 'Weighted average (top) and decoder output (bottom)', ha='center')
         # axs_wa[0].set_ylabel('Weighted\naverage')
         plt.tight_layout(h_pad=0.5)
     plt.draw()
     return fig
+
+
+def scatter_encodings(mus, stds, labels=None, ax=None, alpha=0.5):
+    if ax is None:
+        _, ax_ = plt.subplots()
+    else:
+        ax_ = ax
+    if labels is None:
+        ax.scatter(mus[:, 0], mus[:, 1], alpha=alpha)
+        for mu, std in zip(mus, stds):
+            ellipse = patches.Ellipse(
+                xy=(mu[0], mu[1]), width=4 * std[0], height=4 * std[1],
+                edgecolor='k', fc='None', lw=2)
+            ax.add_patch(ellipse)
+    else:
+        for uniq_label in torch.unique(labels):
+            mus_u = mus[labels == uniq_label]
+            stds_u = stds[labels == uniq_label]
+            ax.scatter(mus_u[:, 0], mus_u[:, 1], alpha=alpha, label='digit=%d'.format(uniq_label))
+            for mu, std in zip(mus_u, stds_u):
+                ellipse = patches.Ellipse(
+                    xy=(mu[0], mu[1]), width=4 * std[0], height=4 * std[1],
+                    edgecolor='k', fc='None', lw=2)
+                ax.add_patch(ellipse)
+    if ax is None:
+        ax_.legend()
+    return ax_
