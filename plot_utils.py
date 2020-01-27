@@ -89,28 +89,29 @@ def compare_reconstructions(num_params, num_layers, orig_images, recons_images, 
     return fig
 
 
+def plot_ellipses(mus, stds, ax):
+    for mu, std in zip(mus, stds):
+        ellipse = patches.Ellipse(
+            xy=(mu[0], mu[1]), width=4 * std[0], height=4 * std[1],
+            edgecolor='k', fc='None', lw=2)
+        ax.add_patch(ellipse)
+    return ax
+
+
 def scatter_encodings(mus, stds, labels=None, ax=None, alpha=0.5):
     if ax is None:
         _, ax_ = plt.subplots()
     else:
         ax_ = ax
     if labels is None:
-        ax.scatter(mus[:, 0], mus[:, 1], alpha=alpha)
-        for mu, std in zip(mus, stds):
-            ellipse = patches.Ellipse(
-                xy=(mu[0], mu[1]), width=4 * std[0], height=4 * std[1],
-                edgecolor='k', fc='None', lw=2)
-            ax.add_patch(ellipse)
+        ax_.scatter(mus[:, 0], mus[:, 1], alpha=alpha)
+        ax_ = plot_ellipses(mus, stds, ax_)
     else:
         for uniq_label in torch.unique(labels):
             mus_u = mus[labels == uniq_label]
             stds_u = stds[labels == uniq_label]
-            ax.scatter(mus_u[:, 0], mus_u[:, 1], alpha=alpha, label='digit=%d'.format(uniq_label))
-            for mu, std in zip(mus_u, stds_u):
-                ellipse = patches.Ellipse(
-                    xy=(mu[0], mu[1]), width=4 * std[0], height=4 * std[1],
-                    edgecolor='k', fc='None', lw=2)
-                ax.add_patch(ellipse)
+            ax_.scatter(mus_u[:, 0], mus_u[:, 1], alpha=alpha, label='digit=%d'.format(uniq_label))
+            ax_ = plot_ellipses(mus_u, stds_u, ax_)
     if ax is None:
         ax_.legend()
     return ax_
