@@ -195,7 +195,7 @@ class VAE(nn.Module):
                 test_mu, _ = self.encode(test_data, batch_size=batch_size)
             weights = self.optimal_weights(test_mu, train_data=train_data, train_mu=train_mu,
                                            train_log_std=train_log_std, batch_size=batch_size)
-            weighted_average = torch.einsum('...i, i...jk->...jk', weights, train_data)
+            weighted_average = torch.einsum('li, i...jk->l...jk', weights, train_data)
         return weighted_average
 
 
