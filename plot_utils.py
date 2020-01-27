@@ -4,6 +4,7 @@ import seaborn as sns
 import torch
 from matplotlib import patches
 from matplotlib import pyplot as plt
+from seaborn import utils as snsutils
 
 
 def show_grid(images, labels=None, num_rows=None, num_cols=None, axs=None,
@@ -115,3 +116,109 @@ def scatter_encodings(mus, stds, labels=None, ax=None, alpha=0.5):
     if ax is None:
         ax_.legend()
     return ax_
+
+
+def overlay_jointgrid(data, data2, data3, data4,
+                      top_title=None, bottom_title=None,
+                      x_label=None, y_label=None, x_lim=None, y_lim=None,
+                      label=None, label2=None, label3=None, label4=None,
+                      top_zorders=(0, 0), bottom_zorders=(0, 0)):
+    cmaps = []
+    for color in ['r', 'b', 'orange', 'g']:
+        color_rgb = mpl.colors.colorConverter.to_rgb(color)
+        colors = [snsutils.set_hls_values(color_rgb, l=li)
+                  for li in np.linspace(1, 0, 12)]
+        cmaps.append(sns.blend_palette(colors, as_cmap=True))
+
+    fig = plt.figure(figsize=(5, 5))
+    gs = plt.GridSpec(7, 7)
+    ax_joints = [fig.add_subplot(gs[1:4, :-1])]
+    ax_joints.append(fig.add_subplot(gs[4:, :-1], sharex=ax_joints[0], sharey=ax_joints[0]))
+    ax_marg_x = fig.add_subplot(gs[0, :-1], sharex=ax_joints[0])
+    ax_marg_y = fig.add_subplot(gs[1:, -1], sharey=ax_joints[0])
+    plt.setp(ax_marg_x.get_xticklabels(), visible=False)
+    plt.setp(ax_marg_y.get_yticklabels(), visible=False)
+
+    # Turn off the ticks on the density axis for the marginal plots
+    plt.setp(ax_marg_x.yaxis.get_majorticklines(), visible=False)
+    plt.setp(ax_marg_x.yaxis.get_minorticklines(), visible=False)
+    plt.setp(ax_marg_y.xaxis.get_majorticklines(), visible=False)
+    plt.setp(ax_marg_y.xaxis.get_minorticklines(), visible=False)
+    plt.setp(ax_marg_x.get_yticklabels(), visible=False)
+    plt.setp(ax_marg_y.get_xticklabels(), visible=False)
+    ax_marg_x.yaxis.grid(False)
+    ax_marg_y.xaxis.grid(False)
+    snsutils.despine(fig)
+    snsutils.despine(ax=ax_marg_x, left=True)
+    snsutils.despine(ax=ax_marg_y, bottom=True)
+    fig.tight_layout()
+    fig.subplots_adjust(hspace=.2, wspace=.2)
+
+    # Draw the two density plots and marginals
+    for d, cmap, ax_ind, clr, zo in zip([data, data2, data3, data4],
+                                        cmaps,
+                                        [0, 0, 1, 1],
+                                        ['r', 'b', 'orange', 'g'],
+                                        top_zorders + bottom_zorders):
+        sns.kdeplot(d[0], d[1], cmap=cmap, shade=True, shade_lowest=False, ax=ax_joints[ax_ind], zorder=zo)
+        # sns.kdeplot(data[0], data[1],
+        #             cmap=cmaps[0], shade=True, shade_lowest=False, ax=ax_joints[0])
+        # sns.kdeplot(data2[0], data2[1],
+        #             cmap=cmaps[1], shade=True, shade_lowest=False, ax=ax_joints[0])
+        # sns.kdeplot(data3[0], data3[1],
+        #             cmap=cmaps[2], shade=True, shade_lowest=False, ax=ax_joints[1])
+        # sns.kdeplot(data4[0], data4[1],
+        #             cmap=cmaps[3], shade=True, shade_lowest=False, ax=ax_joints[1])
+
+        sns.kdeplot(d[0], ax=ax_marg_x, legend=False, color=clr)
+        # sns.kdeplot(data[0], ax=ax_marg_x, legend=False, color='r')
+        # sns.kdeplot(data2[0], ax=ax_marg_x, legend=False, color='b')
+        # sns.kdeplot(data3[0], ax=ax_marg_x, legend=False, color='orange')
+        # sns.kdeplot(data4[0], ax=ax_marg_x, legend=False, shade=False, color='g')
+
+        sns.kdeplot(d[1], ax=ax_marg_y, vertical=True, legend=False, color=clr)
+        # sns.kdeplot(data[1], ax=ax_marg_y, vertical=True, legend=False, color='r')
+        # sns.kdeplot(data2[1], ax=ax_marg_y, vertical=True, legend=False, color='b')
+        # sns.kdeplot(data3[1], ax=ax_marg_y, vertical=True, legend=False, color='orange')
+        # sns.kdeplot(data4[1], ax=ax_marg_y, vertical=True, legend=False, color='g')
+
+    if x_lim is not None:
+        ax_joints[0].set_xlim(x_lim)
+    else:
+        x_lim = ax_joints[0].xlim()
+    if y_lim is not None:
+        ax_joints[0].set_ylim(y_lim)
+    else:
+        y_lim = ax_joints[0].ylim()
+
+    red = sns.color_palette("Reds")[-2]
+    blue = sns.color_palette("Blues")[-2]
+    green = sns.color_palette("Greens")[-2]
+    orange = cmaps[2](0.5)
+
+    # add legends
+    for ax_ind, offset, lbl, clr in zip([0, 0, 1, 1],
+                                        [45, 20, 45, 20],
+                                        [label, label2, label3, label4],
+                                        [red, blue, orange, green]
+                                        ):
+        if lbl is not None:
+            ax_joints[ax_ind].text(x_lim[1] - 10, y_lim[0] + offset, lbl, size=10, color=clr,
+                                   horizontalalignment='right')
+    # ax_joints[0].text(240, 20, 'Trained without 9s', size=10, color=blue, horizontalalignment='right')
+    # ax_joints[1].text(240, 45, "Trained with 9s", size=10, color=orange, horizontalalignment='right')
+    # ax_joints[1].text(240, 20, 'Trained without 9s', size=10, color=green, horizontalalignment='right')
+
+    # plot diagonal lines
+    for ax_ind in [0, 1]:
+        ax_joints[ax_ind].plot(np.arange(*x_lim), np.arange(*y_lim), 'k--')
+    if top_title is not None:
+        ax_joints[0].set_title(top_title)
+    if bottom_title is not None:
+        ax_joints[1].set_title(bottom_title)
+    if x_label is not None:
+        ax_joints[1].set_xlabel(x_label)
+    if y_label is not None:
+        fig.text(0, 0.45, y_label, rotation="vertical")
+    fig.tight_layout()
+    return fig
