@@ -67,4 +67,3 @@ if __name__ == "__main__":
     axs[0].set_title("$q_{\phi}(z)$")
     axs[1].set_title("$w_{max}(z)$")
     plt.show()
-
