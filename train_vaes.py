@@ -33,6 +33,7 @@ parser.add_argument('--holdout-digit', type=int, default=9,
 parser.add_argument('--num-neurons', nargs='+', type=int)
 parser.add_argument('--enc-arch', nargs='+', type=int)
 parser.add_argument('--sweep', action='store_true', default=False)
+parser.add_argument('--no-test', action='store_true', default=False)
 parser.add_argument('--num-layers', type=int, nargs='+')
 
 args = parser.parse_args()
@@ -50,19 +51,24 @@ if __name__ == "__main__":
         train_data = datasets.MiniMNIST('.', samples_per_target=args.spt, train=True,
                                         download=True, transform=transforms.ToTensor(),
                                         random=True, seed=args.seed)
-        test_data = datasets.MiniMNIST('.', samples_per_target=args.spt, train=False,
-                                       download=True, transform=transforms.ToTensor(),
-                                       random=True, seed=args.seed)
+        if not args.no_test:
+            test_data = datasets.MiniMNIST('.', samples_per_target=args.spt, train=False,
+                                           download=True, transform=transforms.ToTensor(),
+                                           random=True, seed=args.seed)
     else:
         if args.holdout:
             train_targets.remove(args.holdout_digit)
         train_data = datasets.HoldoutMNIST('.', targets=train_targets, train=True,
                                            download=True, transform=transforms.ToTensor())
-        test_data = datasets.HoldoutMNIST('.', targets=test_targets, train=False,
-                                          download=True, transform=transforms.ToTensor())
+        if not args.no_test:
+            test_data = datasets.HoldoutMNIST('.', targets=test_targets, train=False,
+                                              download=True, transform=transforms.ToTensor())
 
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
+    if not args.no_test:
+        test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True)
+    else:
+        test_loader = None
     arcs = []
     if args.sweep:
         for num_layer in args.num_layers:
