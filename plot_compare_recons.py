@@ -34,7 +34,7 @@ if __name__ == "__main__":
     test_data = datasets.HoldoutMNIST('.', targets=test_targets, train=False,
                                       download=True, transform=transforms.ToTensor())
     train_imgs = next(DataLoader(train_data, batch_size=len(train_data), shuffle=False).__iter__())[0]
-    test_imgs = next(DataLoader(test_data, batch_size=args.index + 1, shuffle=False).__iter__())[0][args.index]
+    test_imgs = test_data[args.index][0]
 
     num_params = []
     num_layers = []

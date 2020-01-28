@@ -45,7 +45,7 @@ def compare_reconstructions(num_params, num_layers, orig_images, recons_images, 
     num_examples = len(recons_images)
     sorted_i = np.argsort(num_params)
     with sns.axes_style("whitegrid"):
-        fig = plt.figure(figsize=(20, 5))
+        fig = plt.figure(figsize=(17, 5))
         grid = plt.GridSpec(2, 1, hspace=0.07, wspace=0.00)
         g0 = mpl.gridspec.GridSpecFromSubplotSpec(2, num_examples + 1, subplot_spec=grid[0], hspace=0.07, wspace=0.00)
         main_ax = fig.add_subplot(grid[1])
@@ -63,7 +63,7 @@ def compare_reconstructions(num_params, num_layers, orig_images, recons_images, 
         # plt.tight_layout()
         # sns.despine(offset=10, trim=True);
         axs_orig = fig.add_subplot(g0[0:2, 0])
-        axs_orig.imshow(orig_images[0].reshape(28, 28))
+        axs_orig.imshow(orig_images[0].squeeze())
         axs_orig.set_axis_off()
         plt.title("Input")
         plt.tight_layout()
@@ -72,18 +72,18 @@ def compare_reconstructions(num_params, num_layers, orig_images, recons_images, 
         for i in range(num_examples):
             axs_wa[i].get_xaxis().set_ticks([])
             axs_wa[i].get_yaxis().set_ticks([])
-            axs_wa[i].imshow(weighted_averages[sorted_i[i]][0])
+            axs_wa[i].imshow(weighted_averages[sorted_i[i]][0].squeeze())
             plt.tight_layout()
             axs_dec[i].get_xaxis().set_ticks([])
             axs_dec[i].get_yaxis().set_ticks([])
-            axs_dec[i].imshow(recons_images[sorted_i[i]][0])
+            axs_dec[i].imshow(recons_images[sorted_i[i]][0].squeeze())
             plt.tight_layout()
             con = patches.ConnectionPatch(xyA=(14, 27), xyB=(num_params[sorted_i[i]], num_layers[sorted_i[i]]),
                                           coordsA="data",
                                           coordsB="data",
                                           axesA=axs_dec[i], axesB=main_ax, color="red")
             axs_dec[i].add_artist(con)
-        fig.text(0.5, 1.00, 'Weighted average (top) and decoder output (bottom)', ha='center')
+        fig.text(0.5, 0.90, 'Weighted average (top) and decoder output (bottom)', ha='center')
         # axs_wa[0].set_ylabel('Weighted\naverage')
         plt.tight_layout(h_pad=0.5)
     plt.draw()
