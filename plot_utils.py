@@ -41,7 +41,7 @@ def show_prior(model, num_samples=100):
     show_grid(images, cmap='gray', vmin=0, vmax=1)
 
 
-def compare_reconstructions(num_params, num_layers, orig_images, recons_images, weighted_averages, labels=None):
+def capacity_vs_reconstructions(num_params, num_layers, orig_images, recons_images, weighted_averages, labels=None):
     num_examples = len(recons_images)
     sorted_i = np.argsort(num_params)
     with sns.axes_style("whitegrid"):

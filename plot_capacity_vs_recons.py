@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 import datasets
-from plot_utils import compare_reconstructions
+from plot_utils import capacity_vs_reconstructions
 from vae import VAE
 
 parser = argparse.ArgumentParser(description='Plot Reconstruction')
@@ -48,5 +48,5 @@ if __name__ == "__main__":
             recons_images.append(model.reconstruct(test_imgs, use_mean=True))
             weighted_averages.append(model.optimal_reconstruct(test_imgs, train_data=train_imgs))
 
-    fig = compare_reconstructions(num_params, num_layers, test_imgs, recons_images, weighted_averages)
+    fig = capacity_vs_reconstructions(num_params, num_layers, test_imgs, recons_images, weighted_averages)
     plt.show()
