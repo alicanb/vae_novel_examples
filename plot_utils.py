@@ -4,7 +4,12 @@ import seaborn as sns
 import torch
 from matplotlib import patches
 from matplotlib import pyplot as plt
+from scipy import stats
 from seaborn import utils as snsutils
+
+plt.rc('figure', dpi=120)
+plt.rc('font', size=14)
+plt.rc('savefig', dpi=300)
 
 
 def show_grid(images, labels=None, num_rows=None, num_cols=None, axs=None,
@@ -222,3 +227,17 @@ def overlay_jointgrid(data, data2, data3, data4,
         fig.text(0, 0.45, y_label, rotation="vertical")
     fig.tight_layout()
     return fig
+
+
+def entropy_histogram(weights, perplexity=False, ax=None, title=None, bins=30, fig_size=(3, 3)):
+    entropies = stats.entropy(weights.T)
+    if perplexity:
+        entropies = np.exp(entropies)
+    if ax is None:
+        fig, ax = plt.subplots(figsize=fig_size)
+    ax.hist(entropies, bins=bins, align='left', range=[0, 6])
+    ax.set_xlim(0, 6)
+    ax.set_xticks([0, 1, 5])
+    if title is not None:
+        ax.set_title(title)
+    return ax

@@ -21,7 +21,7 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
 parser.add_argument('--dim-z', type=int, default=50,
                     help='latent dimension (default:50)')
 parser.add_argument('--holdout', action='store_true', default=False,
-                    help='holdout 9 from training if True')
+                    help='holdout HOLDOUT_DIGIT from training if True')
 parser.add_argument('--mini', action='store_true', default=False,
                     help='use MiniMNIST if True')
 parser.add_argument('--spt', type=int, default=10,
