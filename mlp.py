@@ -18,7 +18,7 @@ class Encoder(nn.Module):
 
         super(self.__class__, self).__init__()
         if im_shape is None:
-            im_shape = [28, 28]
+            im_shape = [1, 28, 28]
         self.im_shape = im_shape
         num_pixels = np.prod(im_shape)
 
@@ -62,7 +62,7 @@ class Decoder(nn.Module):
 
         super().__init__()
         if im_shape is None:
-            im_shape = [28, 28]
+            im_shape = [1, 28, 28]
         self.im_shape = im_shape
         num_pixels = np.prod(im_shape)
         if isinstance(num_hidden, Number):
