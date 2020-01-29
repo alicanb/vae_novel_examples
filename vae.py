@@ -189,12 +189,13 @@ class VAE(nn.Module):
         return weights
 
     def optimal_reconstruct(self, test_data=None, test_mu=None, train_data=None,
-                            train_mu=None, train_log_std=None, batch_size=100):
+                            train_mu=None, train_log_std=None, weights=None, batch_size=100):
         with torch.no_grad():
-            if test_mu is None:
-                test_mu, _ = self.encode(test_data, batch_size=batch_size)
-            weights = self.optimal_weights(test_mu, train_data=train_data, train_mu=train_mu,
-                                           train_log_std=train_log_std, batch_size=batch_size)
+            if weights is None:
+                if test_mu is None:
+                    test_mu, _ = self.encode(test_data, batch_size=batch_size)
+                weights = self.optimal_weights(test_mu, train_data=train_data, train_mu=train_mu,
+                                               train_log_std=train_log_std, batch_size=batch_size)
             weighted_average = torch.einsum('li, i...jk->l...jk', weights, train_data)
         return weighted_average
 
