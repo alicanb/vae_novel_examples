@@ -30,10 +30,13 @@ Codes for generating figures:
 ![capacity_vs_recons](figures/capacity_vs_recons.png)
 
 ```python plot_kde_bce.py```
-![kde_bce](figures/kde_bce.png)
+
+<img src="figures/kde_bce.png" width="600">
 
 ```python plot_compare_recons_wavg.py --enc-arch 400 200 100 --holdout```
 ![400_200_100_compare](figures/400_200_100_compare.png)
 
 ```python plot_compare_recons_wavg.py --enc-arch 400 200 100 --holdout```
-![400_200_100_perplexity](figures/400_200_100_perplexity.png)
+
+<img src="figures/400_200_100_perplexity.png" width="600">
+
