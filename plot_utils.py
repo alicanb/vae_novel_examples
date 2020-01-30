@@ -10,6 +10,7 @@ from seaborn import utils as snsutils
 plt.rc('figure', dpi=120)
 plt.rc('font', size=14)
 plt.rc('savefig', dpi=300)
+sns.set_palette("colorblind")
 
 
 def show_grid(images, labels=None, num_rows=None, num_cols=None, axs=None,
@@ -135,7 +136,7 @@ def overlay_jointgrid(data, data2, data3, data4,
                   for li in np.linspace(1, 0, 12)]
         cmaps.append(sns.blend_palette(colors, as_cmap=True))
 
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(7, 7))
     gs = plt.GridSpec(7, 7)
     ax_joints = [fig.add_subplot(gs[1:4, :-1])]
     ax_joints.append(fig.add_subplot(gs[4:, :-1], sharex=ax_joints[0], sharey=ax_joints[0]))

@@ -26,6 +26,8 @@ parser.add_argument('--batch-size', type=int, default=128,
 parser.add_argument('--index', type=int, nargs='+', default=(0, 1, 2),
                     help='index')
 parser.add_argument('--num-nearest', type=int, default=3, help='number of training samples with largest weight')
+parser.add_argument('--save-fig', action='store_true', default=False, help='save the figure')
+parser.add_argument('--save-name', type=str, default='agg_posterior.png', help='name for saved image')
 
 args = parser.parse_args()
 device = "cpu"
@@ -64,9 +66,9 @@ if __name__ == "__main__":
         wmax_imgs = train_imgs[max_w_inds, :, :]
         imgs = torch.stack([test_imgs, recons, wavgs, *torch.unbind(wmax_imgs, dim=1)], dim=1)
         imgs = imgs.reshape(-1, *imgs.shape[-3:]).squeeze()
-    _, axs = plt.subplots(nrows=len(args.index), ncols=3 + args.num_nearest, figsize=(2 * (args.num_nearest + 3),
-                                                                                      2 * len(args.index))
-                          )
+    fig, axs = plt.subplots(nrows=len(args.index), ncols=3 + args.num_nearest, figsize=(2 * (args.num_nearest + 3),
+                                                                                        2 * len(args.index))
+                            )
     axs = show_grid(imgs, axs=axs, cmap='gray', vmin=0, vmax=1)
     axs[0, 0].set_title('Input')
     axs[0, 1].set_title('Output')
@@ -74,3 +76,5 @@ if __name__ == "__main__":
     for (i, j), w in np.ndenumerate(np.round(max_w, 2)):
         axs[i, j + 3].set_title(r'$w:{:.2}$'.format(w))
     plt.show()
+    if args.save_fig:
+        fig.savefig(args.save_name)

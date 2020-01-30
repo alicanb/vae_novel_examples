@@ -23,7 +23,8 @@ parser.add_argument('--dim-z', type=int, default=50,
                     help='latent dimension (default:50)')
 parser.add_argument('--batch-size', type=int, default=128,
                     help='batch size')
-
+parser.add_argument('--save-fig', action='store_true', default=False, help='save the figure')
+parser.add_argument('--save-name', type=str, default='weight_perplexity.png', help='name for saved image')
 args = parser.parse_args()
 device = "cpu"
 
@@ -58,5 +59,9 @@ if __name__ == "__main__":
             z = model.encode(test_imgs[i:i + args.batch_size])[0]
             weights.append(model.optimal_weights(z, train_data=train_imgs))
         weights = torch.cat(weights)
-    _ = entropy_histogram(weights, perplexity=True, title="Perplexity Histogram")
+
+    fig, ax = plt.subplots(figsize=(3, 3))
+    _ = entropy_histogram(weights, perplexity=True, title="Perplexity Histogram", ax=ax)
     plt.show()
+    if args.save_fig:
+        fig.savefig(args.save_name)

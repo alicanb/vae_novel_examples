@@ -16,6 +16,8 @@ parser.add_argument('--model', type=str, default='./models/holdout9_z50*',
 parser.add_argument('--holdout-digit', type=int, default=9,
                     help='holdout digit')
 parser.add_argument('--index', type=int, default=1)
+parser.add_argument('--save-fig', action='store_true', default=False, help='save the figure')
+parser.add_argument('--save-name', type=str, default='capacity_vs_recons.png', help='name for saved image')
 
 args = parser.parse_args()
 device = "cpu"
@@ -50,3 +52,5 @@ if __name__ == "__main__":
 
     fig = capacity_vs_reconstructions(num_params, num_layers, test_imgs, recons_images, weighted_averages)
     plt.show()
+    if args.save_fig:
+        fig.savefig(args.save_name)

@@ -24,6 +24,8 @@ parser.add_argument('--extent', type=int, nargs='+', default=[-5, 5, -5, 5],
 parser.add_argument('--cmap-qz', type=str, default='Oranges_r', help='colormap for aggregate posterior')
 parser.add_argument('--cmap-w', type=str, default='Oranges_r', help='colormap for weights')
 parser.add_argument('--num-points', type=int, default=600, help='number of points evaluated points per latent dim')
+parser.add_argument('--save-fig', action='store_true', default=False, help='save the figure')
+parser.add_argument('--save-name', type=str, default='agg_posterior.png', help='name for saved image')
 
 args = parser.parse_args()
 torch.manual_seed(args.seed)
@@ -67,3 +69,5 @@ if __name__ == "__main__":
     axs[0].set_title("$q_{\phi}(z)$")
     axs[1].set_title("$w_{max}(z)$")
     plt.show()
+    if args.save_fig:
+        fig.savefig(args.save_name)

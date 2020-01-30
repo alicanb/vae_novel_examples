@@ -21,6 +21,8 @@ parser.add_argument('--batch-size', type=int, default=128,
                     help='batch size')
 parser.add_argument('--dim-z', type=int, default=50,
                     help='latent dimension (default:50)')
+parser.add_argument('--save-fig', action='store_true', default=False, help='save the figure')
+parser.add_argument('--save-name', type=str, default='kde_bce.png', help='name for saved image')
 
 args = parser.parse_args()
 device = "cpu"
@@ -77,9 +79,11 @@ if __name__ == "__main__":
                                                                        r' \rightarrow '.join(args.arch1[::-1]))
     bottom_title = r'Decoder (${}\rightarrow {} \rightarrow 784$)'.format(args.dim_z,
                                                                           r' \rightarrow '.join(args.arch2[::-1]))
-    overlay_jointgrid(model1_full, model1_holdout, model2_full, model2_holdout,
-                      top_title=top_title, bottom_title=bottom_title,
-                      x_label='$BCE(\mu,\hat{x})$', y_label='$BCE(x,\hat{x})$', x_lim=[0, 250], y_lim=[0, 250],
-                      label='Trained with 9s', label2='Trained without 9s', label3='Trained with 9s',
-                      label4='Trained without 9s', top_zorders=(1, 0), bottom_zorders=(1, 0))
+    fig = overlay_jointgrid(model1_full, model1_holdout, model2_full, model2_holdout,
+                            top_title=top_title, bottom_title=bottom_title,
+                            x_label='$BCE(\mu,\hat{x})$', y_label='$BCE(x,\hat{x})$', x_lim=[0, 250], y_lim=[0, 250],
+                            label='Trained with 9s', label2='Trained without 9s', label3='Trained with 9s',
+                            label4='Trained without 9s', top_zorders=(1, 0), bottom_zorders=(1, 0))
     plt.show()
+    if args.save_fig:
+        fig.savefig(args.save_name)
